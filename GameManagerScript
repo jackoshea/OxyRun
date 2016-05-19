@@ -1,0 +1,181 @@
+using UnityEngine;
+using System.Collections;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour {
+
+	public GameObject enemy;
+	public GameObject[] oxygenBox;
+	public GameObject crate;
+	public Transform[] enemySpawn;
+	public GameObject[] enemyList;
+	public Transform[] oxySpawn;
+	public Transform[] crateSpawn;
+	public Text levelText;
+	public Text scoreText;
+	public Text endGameScoreText;
+	public Text endGameHSText;
+	public GameObject endGameImg;
+	public Animation endGameImgPos;
+
+
+	GameObject enemies;
+	int activeOxyBox;
+	int score;
+	int HS;
+	public static int scoreAdd;
+	public static int level;
+
+	public static bool AlienDie;
+	public static bool gameOver;
+
+	// Use this for initialization
+	void Start () {
+	
+		score = 0;
+		level = 1;
+		scoreAdd = 1;
+		activeOxyBox = 0;
+		SpawnOxyBox ();
+		StartCoroutine(SpawnEnemy ());
+		MoveCrate ();
+		AlienDie = false;
+		gameOver = false;
+
+		InvokeRepeating ("ScorePlus", 0.01f, 0.5f);
+
+		if (!PlayerPrefs.HasKey ("highscore"))
+			PlayerPrefs.SetInt ("highscore", 0);
+		
+		HS = PlayerPrefs.GetInt ("highscore");
+
+	}
+	
+	// Update is called once per frame
+	void Update () {
+
+		levelText.text = level.ToString();
+		scoreText.text = "Batteries: " + Receiver.batteryAmount;
+
+		if (gameOver) {
+
+			if (score > HS)
+				PlayerPrefs.SetInt("highscore", score);
+
+		}
+
+		endGameScoreText.text = "Batteries Collected: \n" + Receiver.batteryAmount;
+		endGameHSText.text = "Most Collected: \n" + 5;
+
+		if (gameOver && Input.GetKey(KeyCode.Space)){
+
+			Application.LoadLevel(Application.loadedLevel);
+
+		}
+
+        if (gameOver && Input.GetKey(KeyCode.Escape))
+        {
+
+            Application.Quit();
+
+        }
+
+
+    }
+
+	IEnumerator SpawnEnemy(){
+
+		yield return new WaitForSeconds (1);
+
+		for (int i = 0; i < level; i++) {
+
+			if (!enemyList [i].activeSelf) {
+
+				int t = Random.Range (0,enemySpawn.Length);
+
+				enemyList [i].SetActive (true);
+				enemyList [i].transform.position = enemySpawn [t].transform.position;
+				enemyList [i].transform.rotation = enemySpawn [t].transform.rotation;
+
+			}
+
+		}
+		
+	}
+
+	void SpawnOxyBox(){
+
+		if (activeOxyBox < 2) {
+			activeOxyBox++;
+
+			int t = Random.Range (0, oxySpawn.Length);
+
+			for (int i = 0; i < oxygenBox.Length; i++) {
+
+				if (!oxygenBox [i].activeSelf) {
+
+					oxygenBox [i].SetActive (true);
+
+					oxygenBox [i].transform.position = oxySpawn [t].transform.position;
+					oxygenBox [i].transform.localRotation = oxySpawn [t].transform.rotation;
+
+					return;
+
+				}
+
+			}
+
+//			Instantiate (oxygenBox, oxySpawn [t].transform.position, oxySpawn [t].transform.rotation);
+		}
+
+	}
+
+	void MoveCrate(){
+
+		crate.SetActive (true);
+
+		int t = Random.Range (0,crateSpawn.Length);
+		
+		crate.transform.position = crateSpawn [t].transform.position;
+		crate.transform.localRotation = crateSpawn [t].transform.localRotation;
+
+//		Instantiate (crate, crateSpawn[t].transform.position, crateSpawn[t].transform.localRotation);
+
+	}
+
+	public IEnumerator RoundRefresh(){
+
+		level++;
+		score += 50;
+
+		AlienDie = true;
+		yield return new WaitForSeconds (0.01f);
+		AlienDie = false;
+
+		SpawnOxyBox ();
+		MoveCrate ();
+
+		yield return new WaitForSeconds (1);
+		StartCoroutine (SpawnEnemy ());
+
+	}
+
+	void LessOxyBox(){
+
+		activeOxyBox--;
+
+	}
+
+	void ScorePlus(){
+
+		score += scoreAdd;
+
+	}
+
+	void cueEndScreen(){
+
+//		Destroy (scoreText);
+		endGameImgPos.Play ("EndScreenAnim");
+
+	}
+}
