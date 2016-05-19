@@ -1,0 +1,202 @@
+using UnityEngine;
+using System.Collections;
+using UnityEngine.UI;
+
+public class PlayerMovement : MonoBehaviour {
+
+	float hori;
+	float verti;
+	Vector3 moveVector;
+	Transform myCam;
+	public float oxygen;
+	float oxyDeplete;
+	bool alive;
+	float timeAlive;
+	bool dead;
+	float timeAdd;
+    public int oxyMultiple;
+	int oxygenAdd;
+	public static bool hasBattery;
+	LayerMask floorMask;
+
+
+	public Transform lerper;
+	public Transform camRef;
+	public Animation myAnim;
+	public Rigidbody myRigi;
+	public float speed;
+	public GameObject levelUpText;
+	public GameObject oxygenText;
+	public Transform levelUpTransform;
+	public Text oxyText;
+	public Text counter;
+    public Text oxyMultiplier;
+	public Slider oxySlider;
+	public Transform deadCamPos;
+	public GameObject GM;
+	public GameObject hitImg;
+	public AudioSource astroSound;
+	public AudioClip yes;
+	public AudioClip ouch;
+	public AudioClip deathClip;
+	public AudioClip wooHoo;
+	public Transform dest;
+	public NavMeshAgent myAgent;
+	public Animator canvas;
+	float deltaTime = 0.0f;
+
+	public static Transform instance;
+
+	
+	// Use this for initialization
+	void Start () {
+
+		floorMask = 1 << 8;
+		hasBattery = false;
+		instance = this.transform;
+
+		astroSound = transform.FindChild ("astronaut_prefab").GetComponent<AudioSource> ();
+		myRigi = GetComponent<Rigidbody> ();
+		
+		myCam = Camera.main.transform;
+
+		oxygen = 100;
+        speed = 10;
+		oxyDeplete = 0.005f;
+		alive = true;
+		timeAlive = 0;
+		dead = false;
+		timeAdd = Time.deltaTime;
+        oxyMultiple = 1;
+
+    }
+	
+	// Update is called once per frame
+	void Update () {
+        
+		deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
+		oxygenAdd = Mathf.Clamp (oxygenAdd, 0, 50);
+		oxygenAdd = (5 * GameManager.level);
+
+		if (alive) {
+			oxygen = Mathf.Clamp (oxygen, 0, 100);
+
+			oxyMultiple = GameManager.level;
+			oxygen -= oxyDeplete * oxyMultiple;
+
+			if (Input.GetMouseButtonDown(0)) {
+				RaycastHit hit;
+
+				if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, floorMask)) {
+					if (hit.transform.tag == "Floor") {
+						myAnim.Play ("run");
+						dest.position = hit.point;
+					}
+				}
+			}
+
+			myAgent.SetDestination (dest.position);
+
+
+		
+			lerper.position = Vector3.Lerp (lerper.position, camRef.position, 0.02f); //lerper's position is lerping from it's current one to camref's at 0.02% per frame
+		
+			myCam.LookAt (lerper); // camera always looking at camRef's transform
+
+			if(oxygen<1)
+				StartCoroutine(Die());
+
+		}
+
+		timeAlive += Time.deltaTime;
+		oxyText.text = oxygen.ToString("F0");
+		oxySlider.value = oxygen;
+        oxyMultiplier.text = "x" + oxyMultiple;
+		counter.text = timeAlive.ToString("F1");
+
+		if (dead) {
+
+			Camera.main.transform.position = Vector3.Lerp(Camera.main.transform.position, deadCamPos.position, 0.01f); 
+			timeAlive += 0;
+
+		}
+	}
+
+	IEnumerator Hit(){
+
+		oxygen -= 10;
+		hitImg.SetActive (true);
+		yield return new WaitForSeconds(0.05f);
+		hitImg.SetActive (false);
+		astroSound.clip = ouch;
+		astroSound.Play ();
+		
+	}
+
+	void LevelUp(){
+        
+		hasBattery = true;
+		GameObject newText = Instantiate (levelUpText, transform.position, Quaternion.identity) as GameObject; //instantiate hit text
+		newText.transform.SetParent(transform.FindChild ("Canvas"));
+		astroSound.clip = yes;
+		astroSound.Play ();
+	}
+
+	void OxygenUp(){
+
+		oxygen += 10*GameManager.level;
+		GameObject newText = Instantiate (oxygenText, transform.position, Quaternion.identity) as GameObject; //instantiate hit text
+		newText.transform.SetParent(transform.FindChild ("Canvas"));
+
+	}
+
+	IEnumerator Die(){
+
+		canvas.SetTrigger ("hudOut");
+		timeAdd = 0;
+		myAnim.Play ("death");
+		alive = false;
+		GameManager.AlienDie = true;
+		GameManager.scoreAdd = 0;
+		dead = true;
+		GM.SendMessage ("cueEndScreen");
+		GameManager.gameOver = true;
+//		GM.GetComponent<AudioSource> ().Stop ();
+		yield return new WaitForSeconds(1);
+		astroSound.clip = deathClip;
+		astroSound.Play ();
+
+	}
+
+	IEnumerator Win(){
+
+		canvas.SetTrigger ("hudOut");
+		alive = false;
+		GameManager.AlienDie = true;
+		GameManager.scoreAdd = 0;
+		dead = true;
+		GameManager.gameOver = true;
+		//		GM.GetComponent<AudioSource> ().Stop ();
+		yield return new WaitForSeconds(1);
+		astroSound.clip = wooHoo;
+		astroSound.Play ();
+
+	}
+
+	void OnGUI()
+	{
+		int w = Screen.width, h = Screen.height;
+
+		GUIStyle style = new GUIStyle();
+
+		Rect rect = new Rect(0, 0, w, h * 2 / 100);
+		style.alignment = TextAnchor.UpperLeft;
+		style.fontSize = h * 2 / 100;
+		style.normal.textColor = new Color (0.0f, 0.0f, 0.5f, 1.0f);
+		float msec = deltaTime * 1000.0f;
+		float fps = 1.0f / deltaTime;
+		string text = string.Format("{0:0.0} ms ({1:0.} fps)", msec, fps);
+		GUI.Label(rect, text, style);
+	}
+
+}
