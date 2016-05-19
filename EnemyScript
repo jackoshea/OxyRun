@@ -1,0 +1,144 @@
+using UnityEngine;
+using System.Collections;
+
+public class EnemyScript : MonoBehaviour {
+
+	public NavMeshAgent myAgent;
+	GameObject player;
+	GameObject myTarget;
+	public Animator myAnim;
+	public Transform gunPoint;
+	public GameObject masterBullet;
+	public LineRenderer lr;
+	public Transform alienPos;
+	public Transform targetPos;
+	public AudioClip deathClip;
+    float timeSinceLastShot;
+
+	// Use this for initialization
+	void Start () {
+	
+		myAgent = GetComponent<NavMeshAgent> ();
+		myAnim = transform.FindChild ("alien character").GetComponent<Animator> ();
+//		myTarget = gameObject;
+		player = GameObject.FindGameObjectWithTag ("Player");
+		lr = transform.FindChild("End of pistol").GetComponent<LineRenderer> ();
+
+//		StartCoroutine (wakeUp ());
+//		lr.enabled = false;
+//		StartCoroutine (startLerp ());
+
+	}
+
+	void OnEnable(){
+		myTarget = gameObject;
+
+		myAnim.SetTrigger ("Move");
+		StartCoroutine (wakeUp ());
+		lr.enabled = false;
+		StartCoroutine (startLerp ());
+	}
+	
+	// Update is called once per frame
+	void Update () {
+	
+		myAgent.SetDestination (myTarget.transform.position);
+
+		if (GameManager.AlienDie == true)
+			StartCoroutine (Die ());
+
+	}
+
+	IEnumerator wakeUp(){
+
+		yield return new WaitForSeconds (2);
+		myTarget = player;
+
+	}
+
+	IEnumerator Shoot(){
+
+		myAnim.SetTrigger ("PrepToShoot");
+		float t = 0;
+
+		while (t<2) {
+
+			lr.enabled = true;
+
+			RaycastHit hit;
+
+			if(Physics.Raycast(gunPoint.transform.position, gunPoint.transform.forward, out hit)){
+
+				if(hit.collider){
+
+					lr.SetPosition(1,new Vector3(0,0,hit.distance+0.5f));
+
+				}else{
+
+					lr.SetPosition(1,new Vector3(0,0,100000));
+				}
+
+			}
+
+			myTarget = gameObject;
+			transform.LookAt(player.transform);
+			t += Time.deltaTime;
+			yield return null;
+
+		}
+
+		lr.enabled = false;
+		Fire ();
+		myAnim.SetTrigger ("TakeShot");
+		myTarget = player;
+
+	}
+
+	void Fire(){
+
+		Instantiate (masterBullet, gunPoint.transform.position, gunPoint.transform.rotation);
+		transform.FindChild ("End of pistol").GetComponent<AudioSource> ().Play ();
+
+	}
+
+	IEnumerator startLerp(){
+
+		float t = 0;
+
+		while (t<2) {
+
+			t += Time.deltaTime;
+			alienPos.transform.position = Vector3.Lerp(alienPos.position, targetPos.position, t/8); 
+			yield return null;
+
+		}
+
+	}
+
+	IEnumerator Die(){
+
+        StartCoroutine(fall());
+		myAnim.SetTrigger ("Dead");
+		myTarget = gameObject;
+		lr.enabled = false;
+		yield return new WaitForSeconds (1);
+		gameObject.SetActive (false);
+
+	}
+
+    IEnumerator fall()
+    {
+
+        float t = 0;
+
+        while (t < 2)
+        {
+
+            transform.FindChild("alien character").Translate(0, -0.5f * Time.deltaTime, 0);
+            yield return null;
+
+        }
+
+    }
+
+}
